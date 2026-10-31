@@ -1,79 +1,138 @@
 # Magasin Kablem
 
-Application de gestion de magasin : **Angular** (frontend) + **Node.js / Express** (backend) + **MySQL** (base de données).
+Gestion du magasin de matières premières de **Kab-lem Tunisia** (Menzel Jemil) : bobines, cosses et connecteurs.
+Imports d'Italie, réception et rangement par palette sur le mobile, emplacements, sorties FIFO, réclamations, inventaire.
+
+| Partie | Technologie | Adresse en local |
+|---|---|---|
+| `backend/` | Node.js + Express 5 + MySQL | http://localhost:3000/api |
+| `frontend/` | Angular 20 (application web des bureaux) | http://localhost:4200 |
+| `mobile/` | Ionic 8 + Angular 20 (magasiniers, scan des QR) | https://localhost:8100 |
+
+---
+
+## 1. Versions utilisées (PC d'origine)
+
+| Outil | Version | Remarque |
+|---|---|---|
+| Windows | 11 | les scripts `.bat` sont pour Windows |
+| **Node.js** | **20.20.0** (LTS 20) | npm 8.19.4 fourni avec ; Node 20.x ou 22.x conviennent |
+| **MySQL Server** | **8.0.46** (Community) | utilisateur `root`, port 3306 |
+| Git | 2.44 | |
+| Angular / Angular CLI | 20.3 | installé par `npm install`, pas besoin d'installation globale |
+| TypeScript | 5.9 | installé par `npm install` |
+| Ionic Angular | 8.8 ; Capacitor 7 | installé par `npm install` |
+| Express | 5.2 ; mysql2 3.24 ; Jest 29 ; nodemon 3 | installé par `npm install` |
+| Google Chrome | récent | pour le web ; Chrome sur le téléphone pour le mobile |
+
+## 2. Installer sur un nouveau PC (Windows)
+
+### 2.1 Les outils (une fois)
+Dans PowerShell :
+```powershell
+winget install OpenJS.NodeJS.LTS
+winget install Oracle.MySQL
+winget install Git.Git
+```
+Pendant l'installation de MySQL : type « Development Computer », port **3306**, choisir un mot de passe pour **root** (le noter).
+Fermer puis rouvrir le terminal, et vérifier : `node -v` (v20 ou plus), `npm -v`, `git --version`, `mysql --version`.
+
+### 2.2 Le projet
+```powershell
+git clone https://github.com/houssemhosni2/magasin-kablem.git
+cd magasin-kablem
+npm run install:all
+```
+`install:all` installe les dépendances de la racine, du backend, du web et du mobile (quelques minutes).
+
+### 2.3 La configuration : `backend/.env`
+Copier `backend/.env.example` en `backend/.env` puis remplir :
+```
+DB_PASSWORD=le mot de passe root de MySQL
+JWT_SECRET=une longue phrase secrète au hasard (40 caractères ou plus)
+```
+Le fichier `.env` n'est jamais envoyé sur GitHub (il est dans `.gitignore`).
+
+### 2.4 La base de données (une commande)
+```powershell
+npm run base
+```
+Crée la base `magasin_kablem` : toutes les tables, toutes les migrations dans l'ordre, le compte administrateur, puis le catalogue des articles
+(180 bobines avec leur taille, 224 cosses avec leur type axiale/plat, 1000 connecteurs). Le stock est vide.
+Si la base existe déjà, rien n'est fait ; `node backend/scripts/creer-base.js --remplacer` l'efface et la recrée.
+
+> **Garder les données du magasin de l'ancien PC** (stock, imports, historique) : elles ne sont pas sur GitHub.
+> Sur l'ancien PC : `mysqldump -u root -p --databases magasin_kablem > magasin_kablem.sql`
+> Copier le fichier (clé USB), puis sur le nouveau PC, à la place de `npm run base` : `mysql -u root -p < magasin_kablem.sql`
+
+### 2.5 Vérifier
+```powershell
+npm test
+```
+Lance les 172 tests du backend sur une base séparée `magasin_kablem_test` (créée et vidée automatiquement : la vraie base n'est jamais touchée).
+
+## 3. Lancer
+
+| Commande (à la racine) | Lance |
+|---|---|
+| `npm run dev` | API + web → http://localhost:4200 |
+| `npm run tout` | API + web + mobile |
+| `npm run backend` / `npm run frontend` / `npm run mobile` | une seule partie |
+| double-clic sur `demarrer-mobile.bat` | API + mobile dans deux fenêtres, et affiche l'adresse à ouvrir sur le téléphone |
+
+Connexion : matricule **admin**, mot de passe **admin** (à changer tout de suite dans Administration → Utilisateurs).
+Rôles : administrateur, chef de magasin, magasinier, planificateur (catalogue des articles seulement).
+
+### Le mobile sur le téléphone
+1. Le téléphone et le PC sur le **même réseau** (même Wi-Fi).
+2. Trouver l'adresse du PC : `ipconfig` → « Adresse IPv4 » de la carte connectée (`demarrer-mobile.bat` l'affiche).
+3. Sur le téléphone, dans Chrome : `https://ADRESSE-DU-PC:8100` → accepter l'avertissement de certificat (certificat de développement).
+4. La caméra demande le HTTPS : c'est pour cela que le mobile est servi en `https`.
+Le mobile parle à l'API par le relais du serveur de développement (`mobile/proxy.conf.json` : `/api` → `localhost:3000`) : rien à régler.
+Si le pare-feu Windows le demande, autoriser Node.js sur les réseaux privés.
+
+## 4. Organisation du code
 
 ```
 magasin-kablem/
-├── frontend/          Angular 20  → http://localhost:4200
-├── backend/           Node.js + Express → http://localhost:3000/api
-│   ├── database/schema.sql   script de création de la base
-│   └── .env                  configuration MySQL
-└── package.json       scripts pour lancer les deux ensemble
+├── backend/
+│   ├── src/server.js              démarrage, routes, droits par rôle
+│   ├── src/rangement.js           moteur de rangement (règles des emplacements, capacités)
+│   ├── src/palettes.js            réception par palette (où poser une palette)
+│   ├── src/routes/                API (imports, stock, mobile-*, ranger, articles, journal…)
+│   ├── database/schema.sql        tables de départ + compte admin
+│   ├── database/migration-0xx     anciennes migrations (déjà incluses dans schema.sql)
+│   ├── database/mobile/           migrations 013 à 032 (appliquées par npm run base)
+│   ├── scripts/                   création de la base, catalogue, imports d'essai
+│   └── tests/                     tests Jest (base magasin_kablem_test)
+├── frontend/src/app/pages/        pages web (import, stock, emplacements, articles, journal…)
+├── mobile/src/app/pages/          écrans mobile (réception, rangement, export, ranger, inventaire…)
+├── docs/                          PDF et PowerPoint (règles de rangement, cas, étiquettes)
+└── DESCRIPTION MP.xlsx            catalogue d'origine des articles (lu par npm run base)
 ```
 
-## Installation (une seule fois)
+Une nouvelle migration va dans `backend/database/mobile/` avec le numéro suivant (`migration-033-….sql`) :
+elle doit seulement ajouter (tables, colonnes, valeurs), sans perdre de données. `npm run base` et les tests l'appliquent automatiquement.
 
-1. Mettre le mot de passe MySQL dans `backend/.env` (`DB_PASSWORD=...`) ainsi qu'une clé secrète `JWT_SECRET=...` (voir `.env.example`).
-2. Créer la base :
-   ```
-   mysql -u root -p < backend/database/schema.sql
-   ```
-   (ou ouvrir `schema.sql` dans MySQL Workbench et l'exécuter)
-3. **Base déjà créée avant les modules stock / import / export / emplacements ?** Exécuter une seule fois :
-   ```
-   mysql -u root -p < backend/database/migration-002-stock.sql
-   ```
-4. **Base créée avant les imports multi-produits ?** Exécuter une seule fois :
-   ```
-   mysql -u root -p < backend/database/migration-003-imports.sql
-   ```
-5. (Optionnel, base neuve) Données d'exemple : `mysql -u root -p < backend/database/exemples-stock.sql`
+## 5. Règles du magasin (résumé)
 
-## Lancer le projet
+- Plan : blocs A-D, niveaux 0-4, emplacements `C215` (bloc C, niveau 2, n° 15) ; zone tampon `T01…` au sol. 1 emplacement = 1 palette.
+- Niveau 0 : bobines — 6 petites, 2 moyennes ou 1 grande par palette (une seule taille ; taille donnée par le catalogue Articles).
+- Niveaux 1-2 : cosses — 10 plates **et** 3 axiales par palette, comptées à part. Les plates arrivent par palette, les axiales une par une.
+- Niveaux 3-4 : connecteurs — limités par le volume et le poids (réglables).
+- Réception d'une palette : un emplacement entièrement vide d'abord, sinon colis par colis sur les palettes commencées, sinon la zone tampon.
+- Sorties : FIFO imposé (plus petit lot, puis réception la plus ancienne).
+- « Ranger le magasin » : le magasinier déplace librement (ticket → départ → arrivée) ; l'application contrôle et historise tout avec le matricule.
 
-```
-npm run dev
-```
-Lance le backend et Angular en même temps. Ouvrir http://localhost:4200
+## 6. Scripts utiles (`backend/scripts/`)
 
-Autres commandes : `npm run backend`, `npm run frontend`, `npm run install:all`.
+| Script | Rôle |
+|---|---|
+| `creer-base.js` | crée la base complète (`npm run base`) |
+| `importer-description-mp.js` | relit `DESCRIPTION MP.xlsx` |
+| `remplacer-bobines-catalogue.js` / `remplacer-cosses-catalogue.js` | listes du magasin (taille des bobines, type des cosses) |
+| `reset-import-6-bobines.js`, `reset-import-14-bobines.js`, `reset-import-mixte.js` | imports d'essai (puis « Synchroniser » dans Import) |
+| `garder-dernier-import.js` | efface tous les imports sauf le dernier (sauvegarde d'abord) |
+| `etiquettes-emplacements.js` | PDF des étiquettes QR des emplacements |
 
-## Connexion
-
-Compte administrateur par défaut : matricule **admin**, mot de passe **admin**.
-L'admin crée les comptes des magasiniers depuis le menu **Administration → Utilisateurs** ; chaque magasinier se connecte ensuite avec son matricule et son mot de passe.
-Toutes les routes `/api/produits` et `/api/categories` exigent l'en-tête `Authorization: Bearer <token>`.
-
-## API
-
-| Méthode | URL                    | Rôle                  |
-|---------|------------------------|-----------------------|
-| GET     | /api/health            | test connexion MySQL  |
-| POST    | /api/auth/login        | connexion (JWT)       |
-| GET     | /api/auth/me           | utilisateur connecté  |
-| GET     | /api/utilisateurs      | liste (admin)         |
-| POST    | /api/utilisateurs      | créer un compte (admin) |
-| PUT     | /api/utilisateurs/:id  | modifier (admin)      |
-| DELETE  | /api/utilisateurs/:id  | supprimer (admin)     |
-| GET     | /api/produits          | articles + stock par emplacement |
-| GET     | /api/produits/:id      | un produit            |
-| POST    | /api/produits          | ajouter               |
-| PUT     | /api/produits/:id      | modifier              |
-| DELETE  | /api/produits/:id      | supprimer             |
-| GET     | /api/emplacements      | emplacements + contenu |
-| POST/PUT/DELETE | /api/emplacements[/:id] | gérer les emplacements |
-| GET     | /api/mouvements?type=import\|export | historique |
-| POST    | /api/mouvements        | enregistrer un import ou un export |
-| GET     | /api/imports           | imports (arrivages) et leurs produits |
-| POST    | /api/imports           | nouvel import (en attente) |
-| DELETE  | /api/imports/:id       | supprimer un import en attente |
-| POST    | /api/imports/:id/produits | ajouter un produit à un import en attente |
-| DELETE  | /api/imports/:id/produits/:produitId | retirer un produit |
-| GET     | /api/imports/:id/plan-rangement | emplacement proposé pour chaque produit (règles de rangement) |
-| POST    | /api/imports/:id/ajouter-au-stock | ajouter l'import au stock et ranger ses produits (`placements` optionnels) ; verrouillé ensuite |
-| GET     | /api/stock             | palettes en stock, classées par référence puis FIFO |
-| PUT     | /api/stock/:id/emplacement | changer l'emplacement (code, TAMPON ou null) |
-| POST    | /api/stock/ranger-automatiquement | ranger la zone tampon et les produits sans emplacement |
-| GET     | /api/categories        | liste des catégories  |
-| POST    | /api/categories        | ajouter               |
-| DELETE  | /api/categories/:id    | supprimer             |
+Les scripts qui effacent des données font d'abord une sauvegarde dans `backend/scripts/sauvegardes/` (jamais envoyée sur GitHub).
