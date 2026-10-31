@@ -27,6 +27,8 @@ Imports d'Italie, réception et rangement par palette sur le mobile, emplacement
 
 ## 2. Installer sur un nouveau PC (Windows)
 
+> **Avec Claude** : copier le prompt de [PROMPT-NOUVEAU-PC.md](PROMPT-NOUVEAU-PC.md) — Claude fait toutes les étapes ci-dessous.
+
 ### 2.1 Les outils (une fois)
 Dans PowerShell :
 ```powershell
@@ -54,16 +56,21 @@ JWT_SECRET=une longue phrase secrète au hasard (40 caractères ou plus)
 Le fichier `.env` n'est jamais envoyé sur GitHub (il est dans `.gitignore`).
 
 ### 2.4 La base de données (une commande)
+**Avec toutes les données du magasin (recommandé)** — la copie complète est dans le dépôt (`backend/database/donnees/magasin_kablem.sql`) :
 ```powershell
-npm run base
+npm run base:restaurer
 ```
-Crée la base `magasin_kablem` : toutes les tables, toutes les migrations dans l'ordre, le compte administrateur, puis le catalogue des articles
-(180 bobines avec leur taille, 224 cosses avec leur type axiale/plat, 1000 connecteurs). Le stock est vide.
-Si la base existe déjà, rien n'est fait ; `node backend/scripts/creer-base.js --remplacer` l'efface et la recrée.
+Même base que sur l'ancien PC : catalogue (taille des bobines, type des cosses), stock, imports, palettes, historique,
+réclamations, **comptes et mots de passe** (chacun se connecte comme avant).
 
-> **Garder les données du magasin de l'ancien PC** (stock, imports, historique) : elles ne sont pas sur GitHub.
-> Sur l'ancien PC : `mysqldump -u root -p --databases magasin_kablem > magasin_kablem.sql`
-> Copier le fichier (clé USB), puis sur le nouveau PC, à la place de `npm run base` : `mysql -u root -p < magasin_kablem.sql`
+**Ou une base neuve, sans stock** : `npm run base` (tables, migrations, compte admin / admin, catalogue des articles).
+
+Si la base existe déjà, rien n'est fait ; ajouter `--remplacer` pour l'écraser :
+`node backend/scripts/restaurer-base.js --remplacer` ou `node backend/scripts/creer-base.js --remplacer`.
+
+> **Mettre à jour la copie** (avant de changer de PC, ou pour sauvegarder) : `npm run base:exporter` sur le PC qui a les bonnes données,
+> puis committer et pousser `backend/database/donnees/magasin_kablem.sql`.
+> Le dépôt étant public, cette copie (comptes compris, mots de passe chiffrés) est visible de tous : changer les mots de passe faibles.
 
 ### 2.5 Vérifier
 ```powershell
@@ -80,7 +87,7 @@ Lance les 172 tests du backend sur une base séparée `magasin_kablem_test` (cr�
 | `npm run backend` / `npm run frontend` / `npm run mobile` | une seule partie |
 | double-clic sur `demarrer-mobile.bat` | API + mobile dans deux fenêtres, et affiche l'adresse à ouvrir sur le téléphone |
 
-Connexion : matricule **admin**, mot de passe **admin** (à changer tout de suite dans Administration → Utilisateurs).
+Connexion : avec la copie restaurée, les comptes habituels ; avec une base neuve, matricule **admin**, mot de passe **admin** (à changer dans Administration → Utilisateurs).
 Rôles : administrateur, chef de magasin, magasinier, planificateur (catalogue des articles seulement).
 
 ### Le mobile sur le téléphone
@@ -128,7 +135,8 @@ elle doit seulement ajouter (tables, colonnes, valeurs), sans perdre de données
 
 | Script | Rôle |
 |---|---|
-| `creer-base.js` | crée la base complète (`npm run base`) |
+| `creer-base.js` | crée une base neuve avec le catalogue (`npm run base`) |
+| `exporter-base.js` / `restaurer-base.js` | copie complète de la base dans le dépôt, et sa restauration (`npm run base:exporter` / `base:restaurer`) |
 | `importer-description-mp.js` | relit `DESCRIPTION MP.xlsx` |
 | `remplacer-bobines-catalogue.js` / `remplacer-cosses-catalogue.js` | listes du magasin (taille des bobines, type des cosses) |
 | `reset-import-6-bobines.js`, `reset-import-14-bobines.js`, `reset-import-mixte.js` | imports d'essai (puis « Synchroniser » dans Import) |

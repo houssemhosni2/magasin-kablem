@@ -8,7 +8,8 @@ Suivre `README.md` section 2, dans l'ordre :
    Le mot de passe root de MySQL est choisi par l'utilisateur : le lui demander, ne jamais l'inventer ni l'écrire ailleurs que dans `backend/.env`.
 2. `npm run install:all` à la racine.
 3. Créer `backend/.env` depuis `backend/.env.example` (DB_PASSWORD, et un JWT_SECRET long et aléatoire).
-4. `npm run base` (crée la base complète). Si l'utilisateur apporte un fichier `magasin_kablem.sql` de l'ancien PC, l'importer à la place.
+4. `npm run base:restaurer` : restaure la copie complète de la base (`backend/database/donnees/magasin_kablem.sql`, avec stock et comptes).
+   Seulement si l'utilisateur veut repartir de zéro : `npm run base` (base neuve, compte admin / admin).
 5. `npm test` : les 172 tests doivent passer.
 6. Lancer : `npm run dev` (web) ou `demarrer-mobile.bat` (mobile) et donner l'adresse `https://IP-DU-PC:8100` pour le téléphone.
 
